@@ -1,0 +1,172 @@
+import React, { useContext, useRef, useState, useEffect } from 'react';
+import { Modal, Box, TextField, Button, Typography, CircularProgress, Select, FormControl, InputLabel, MenuItem } from '@mui/material/';
+import { useFormik } from 'formik';
+import { UploadFile } from '@mui/icons-material';
+import Swal from 'sweetalert2';
+
+import { fileUpload } from '../../helpers/fileUpload';
+import { useResourceStore, useAuthStore, useUiStore } from '../../hooks';
+
+
+const validate = ({ title }) => {
+  const errors = {};
+  if (!title) {
+    errors.title = "Ingrese el titulo";
+  } else if (title.length === 0) {
+    errors.title = "Ingrese el titulo";
+  }
+  return errors;
+};
+
+export const ResourceModal = () => {
+  const { toggleImageModal, isImageModalOpen, toggleUploadFile, isMenuOpen, isUpdloadingFile } = useUiStore();
+  const { activeResource, saveResource, isSaving } = useResourceStore();
+  const { uid } = useAuthStore();
+
+  const [touched, setTouched] = useState(false);
+  const [url, seturl] = useState('');
+
+  const uploadRef = useRef();
+
+  const formik = useFormik({
+    initialValues: {
+      title: activeResource ? activeResource.title : '',
+    },
+    validateOnBlur: false,
+    validate,
+    onSubmit: async ({ title }) => {
+      saveResource({ ...activeResource, title, url, uid });
+      toggleImageModal();
+    },
+  });
+
+  const onFilesSelected = async ({ target }) => {
+    if (!target.files || target.files.length === 0) {
+      return;
+    }
+    toggleUploadFile();
+    try {
+      for (const file of target.files) {
+        console.log(file);
+        if (file.size > 99000000) {
+          toggleImageModal();
+          toggleUploadFile();
+          Swal.fire({
+            title: "Error",
+            text: 'Tu plan solo te permite subir archivos inferiores a 100MB',
+            icon: "error",
+          }).then(() => {
+            toggleImageModal();
+          })
+          return;
+        }
+
+        const resp = await fileUpload(file);
+        if (resp.url) {
+          toggleUploadFile();
+          seturl(resp.secure_url);
+
+          formik.resetForm();
+        }
+      }
+    } catch (error) {
+      toggleUploadFile();
+      console.log({ error });
+    }
+  }
+
+  useEffect(() => {
+
+  }, [activeResource])
+
+  useEffect(() => {
+  }, [isUpdloadingFile])
+  useEffect(() => {
+  }, [url]);
+
+  return (
+    <div>
+      <Modal
+
+        sx={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 400,
+          bgcolor: "background.paper",
+          border: "2px solid #000",
+          boxShadow: 24,
+          p: 4,
+        }}
+        open={isImageModalOpen}
+        onClose={toggleImageModal}
+      // onClose
+      >
+
+        <Box
+          sx={{ mt: 2, mb: 2, display: "block" }}
+          component="form"
+          autoComplete="off"
+          onSubmit={formik.handleSubmit}
+        >
+          <Typography id="modal-modal-title" variant="h6" component="h2">
+            Nuevo Recurso
+          </Typography>
+          <TextField
+            id="title"
+            sx={{ mt: 2, mb: 1 }}
+            placeholder="Ingrese un titulo"
+            fullWidth
+            autoFocus
+            helperText={
+              formik.errors.title && touched && `${formik.errors.title}`
+            }
+            onChange={formik.handleChange}
+            error={formik.errors.title && touched}
+            value={formik.values.title}
+            onBlur={() => setTouched(true)}
+          />
+          <Button
+            sx={{ display: (url ? 'none' : 'flex') }}
+            onClick={() => uploadRef.current?.click()}
+            startIcon={<UploadFile />}
+            disabled={isUpdloadingFile}
+          >
+            Seleccionar archivo
+          </Button>
+
+          <CircularProgress
+            color='warning'
+            sx={{ display: (isUpdloadingFile ? 'flex' : 'none') }}
+          />
+          <input
+            ref={uploadRef}
+            type="file"
+            multiple
+            accept='image/png, image/gif, image/jpeg, web/svg'
+            style={{ display: 'none' }}
+
+            onChange={onFilesSelected}
+          />
+
+          <Box
+            component='img'
+            width={100}
+            height={100}
+            src={url}
+            sx={{ display: (url ? 'flex' : 'none') }}
+          />
+          <Button
+            fullWidth
+            xs={{ mt: 2 }}
+            onClick={formik.handleSubmit}
+            disabled={(!!formik.errors.first && !!formik.errors.second) && isUpdloadingFile || isSaving}
+          >
+            Enviar
+          </Button>
+        </Box>
+      </Modal>
+    </div>
+  );
+};
