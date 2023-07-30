@@ -110,7 +110,7 @@ export const SideBar = () => {
         <Divider />
         {/* * TODO: Social Media  */}
 
-        <Link href="https://github.com/BlackOnyxs/binary-calc" underline="none">
+        <Link href="https://github.com/BlackOnyxs/AETERIA" underline="none">
           <ListItemButton>
             <ListItemIcon>
               <GitHub />
